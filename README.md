@@ -11,6 +11,7 @@ cobs.encode(buffer) => buffer
 cobs.decode(buffer) => buffer
 cobs.encodeStream()
 cobs.decodeStream()
+cobs.maxLength(buffer or number) => number // upper bound
 ```
 
 Results:

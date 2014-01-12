@@ -90,6 +90,10 @@ function decodeStream () {
 }
 
 module.exports = {
+  maxLength: function (len) {
+    typeof len == 'number' || (len = len.length);
+    return Math.ceil(len / 254) + len;
+  },
 	encode: encode,
 	decode: decode,
 	encodeStream: encodeStream,
