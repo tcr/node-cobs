@@ -6,19 +6,21 @@ var BlockStream = require('block-stream');
 
 var encoder = fs.createReadStream(__dirname + '/stream.js')
 	.pipe(splitStream(/(?=\n)/))
-	.pipe(cobs.encodeStream()) // zero-packet framing
+	.pipe(cobs.encodeStream())
 
 // here is our transmission format
 // encoder.pipe(fs.createWriteStream(__dirname + '/../compare.txt'));
 
 var buf = '';
 var decoder = encoder
-	.pipe(new BlockStream(21)) // arbitrary chunking of packet data...
-	.pipe(cobs.decodeStream()) // split into correct packets again
+	.pipe(new BlockStream(21)) // arbitrary
+	.pipe(cobs.decodeStream())
 	.pipe(joinStream(''))
 	.on('data', function (data) {
+		// console.error(String(data));
 		buf += String(data);
 	}).on('end', function () {
-		// fs.writeFileSync(__dirname + '/../compare.txt', buf);
+		buf = buf.replace(/\0+$/, ''); //block-stream does this
+		fs.writeFileSync(__dirname + '/../compare.txt', buf);
 		console.log('Success:', fs.readFileSync(__dirname + '/stream.js', 'utf-8') == buf);
 	})

@@ -1,9 +1,15 @@
 var stream = require('stream');
+var splitStream = require('split');
 
-function encode (buf) {
+function encode (buf, zeroFrame) {
   var dest = [0];
   var code_ptr = 0;
   var code = 0x01;
+
+  if (zeroFrame) {
+    dest.push(0x00);
+    code_ptr++;
+  }
 
   function finish (incllast) {
     dest[code_ptr] = code;
@@ -24,6 +30,11 @@ function encode (buf) {
     }
   }
   finish(false);
+
+  if (zeroFrame) {
+    dest.push(0x00);
+  }
+
   return new Buffer(dest);
 }
 
@@ -51,7 +62,7 @@ function encodeStream () {
 	cobs._read = function (size) {
 	};
 	cobs._write = function (chunk, encoding, callback) {
-		chunk = encode(chunk)
+		chunk = encode(chunk, true)
 		this.push(chunk);
 		callback(null);
 	};
@@ -59,16 +70,21 @@ function encodeStream () {
 }
 
 function decodeStream () {
+  var splitter = splitStream(/\0+/);
+
 	var cobs = new stream.Duplex();
 	cobs.on('pipe', function (stream) {
 		stream.on('end', this.emit.bind(this, 'end'));
 	})
 	cobs._read = function (size) {
 	};
+  splitter.on('data', function (chunk) {
+    var newchunk = decode(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk))
+    cobs.push(newchunk);
+  })
 	cobs._write = function (chunk, encoding, callback) {
-		chunk = decode(chunk)
-		this.push(chunk);
-		callback(null);
+    splitter.write(chunk, encoding);
+    callback(null);
 	};
 	return cobs;
 }
