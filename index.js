@@ -1,5 +1,4 @@
 var stream = require('stream');
-var splitStream = require('split');
 
 function encode (buf, zeroFrame) {
   var dest = [0];
@@ -55,68 +54,85 @@ function decode (buf)
 }
 
 function encodeStream () {
-	var cobs = new stream.Duplex();
-	cobs.on('pipe', function (stream) {
-		stream.on('end', this.emit.bind(this, 'end'));
-	})
-	cobs._read = function (size) {
-	};
-	cobs._write = function (chunk, encoding, callback) {
-		chunk = encode(chunk, true)
-		this.push(chunk);
-		callback(null);
-	};
-	return cobs;
+  var cobs = new stream.Duplex();
+  cobs.on('pipe', function (stream) {
+    stream.on('end', this.emit.bind(this, 'end'));
+  })
+  cobs._read = function (size) {
+  };
+  cobs._write = function (chunk, encoding, callback) {
+    chunk = encode(chunk, true)
+    this.push(chunk);
+    callback(null);
+  };
+  return cobs;
+}
+
+function splitter (next) {
+  var bufs = [];
+  return function (buf, encoding) {
+    buf = Buffer.isBuffer(buf) ? buf : new Buffer(buf, encoding);
+    for (var i = 0; i < buf.length; i++) {
+      if (buf[i] == 0) {
+        if (bufs.length) {
+          next(Buffer.concat(bufs));
+          bufs = [];
+        }
+      } else {
+        for (var j = i; j < buf.length; j++) {
+          if (buf[j] == 0) {
+            break;
+          }
+        }
+        bufs.push(buf.slice(i, j))
+        i = j - 1;
+      }
+    }
+  };
 }
 
 function decodeStream () {
-  var splitter = splitStream(/\0+/);
-
-	var cobs = new stream.Duplex();
-	cobs.on('pipe', function (stream) {
-		stream.on('end', this.emit.bind(this, 'end'));
-	})
-	cobs._read = function (size) {
-	};
-  splitter.on('data', function (chunk) {
-    var newchunk = decode(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk))
+  var cobs = new stream.Duplex();
+  cobs.on('pipe', function (stream) {
+    stream.on('end', this.emit.bind(this, 'end'));
+  })
+  cobs._read = function (size) {
+  };
+  var pushsplit = splitter(function (chunk) {
+    var newchunk = decode(chunk)
     cobs.push(newchunk);
   })
-	cobs._write = function (chunk, encoding, callback) {
-    splitter.write(chunk, encoding);
+  cobs._write = function (chunk, encoding, callback) {
+    pushsplit(chunk, encoding);
     callback(null);
-	};
-	return cobs;
+  };
+  return cobs;
 }
 
 module.exports = {
-  maxLength: function (len) {
-    typeof len == 'number' || (len = len.length);
-    return Math.ceil(len / 254) + len;
-  },
-	encode: encode,
-	decode: decode,
-	encodeStream: encodeStream,
-	decodeStream: decodeStream
+  encode: encode,
+  decode: decode,
+  encodeStream: encodeStream,
+  decodeStream: decodeStream
 }
 
 // tests
 // function test (buf) {
-// 	console.log(buf);
-// 	console.log(stuff(buf))
-// 	console.log(unstuff(stuff(buf)))
-// 	console.log('')
+//  console.log(buf);
+//  console.log(stuff(buf))
+//  console.log(unstuff(stuff(buf)))
+//  console.log('')
 // }
 // test(new Buffer([0x00]))
 // test(new Buffer([0x11, 0x22, 0x00, 0x33]))
 // test(new Buffer([0x11, 0x00, 0x00, 0x00]))
 // test(new Buffer(Array.range(1, 255)))
 
-// var fs = require('fs');	
+// var fs = require('fs');  
 // var buf = '';
 // fs.createReadStream('./index.js').pipe(encodeStream()).pipe(decodeStream()).on('data', function (data) {
-// 	// console.error(String(data));
-// 	buf += String(data);
+//  // console.error(String(data));
+//  buf += String(data);
 // }).on('end', function () {
-// 	console.log('Success:', fs.readFileSync('./index.js', 'utf-8') == buf);
+//  console.log('Success:', fs.readFileSync('./index.js', 'utf-8') == buf);
 // })
