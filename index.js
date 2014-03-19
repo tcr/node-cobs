@@ -68,6 +68,10 @@ function encodeStream () {
   return cobs;
 }
 
+function clonebuffer (buf) {
+  return Buffer.concat([buf, new Buffer([])])
+}
+
 function splitter (next) {
   var bufs = [];
   return function (buf, encoding) {
@@ -75,7 +79,7 @@ function splitter (next) {
     for (var i = 0; i < buf.length; i++) {
       if (buf[i] == 0) {
         if (bufs.length) {
-          next(Buffer.concat(bufs));
+          next(clonebuffer(Buffer.concat(bufs)));
           bufs = [];
         }
       } else {
@@ -84,7 +88,7 @@ function splitter (next) {
             break;
           }
         }
-        bufs.push(buf.slice(i, j))
+        bufs.push(clonebuffer(buf.slice(i, j)))
         i = j - 1;
       }
     }

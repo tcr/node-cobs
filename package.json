@@ -1,6 +1,6 @@
 {
   "name": "cobs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Consistent Overhead Byte Stuffing and packet framing implemented in Node.",
   "main": "index.js",
   "directories": {
