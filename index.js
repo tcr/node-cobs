@@ -1,40 +1,36 @@
 var stream = require('stream');
 
-function encode (buf, zeroFrame) {
-  var dest = [0];
-  var code_ptr = 0;
-  var code = 0x01;
+function encode(buf, zeroFrame) {
+  const dest = [0];
+  let code_ptr = 0;
+  let code = 0x01;
 
-  if (zeroFrame) {
-    dest.push(0x00);
-    code_ptr++;
-  }
 
-  function finish (incllast) {
+  function finish(incllast) {
     dest[code_ptr] = code;
     code_ptr = dest.length;
     incllast !== false && dest.push(0x00);
     code = 0x01;
   }
 
-  for (var i = 0; i < buf.length; i++) {
-    if (buf[i] == 0) {
+  for (let i = 0; i < buf.length; i++) {
+    if (code === 0xFF) {
+      i--;
+      finish();
+    } else if (buf[i] === 0x00) {
       finish();
     } else {
       dest.push(buf[i]);
-      code += 1;
-      if (code == 0xFF) {
-        finish();
-      }
+      code++;
     }
   }
-  finish(false);
+  dest[code_ptr] = code;
 
   if (zeroFrame) {
     dest.push(0x00);
   }
 
-  return new Buffer(dest);
+  return Buffer.from(dest);
 }
 
 
